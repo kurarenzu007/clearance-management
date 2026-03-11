@@ -1,0 +1,11 @@
+{
+  "buildCommand": "cd clearance-management && npm run build",
+  "outputDirectory": "clearance-management/dist",
+  "installCommand": "cd clearance-management && npm install",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
