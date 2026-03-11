@@ -5,8 +5,26 @@ import {
 } from 'recharts';
 import StatusBadge from '../../components/common/StatusBadge';
 import Modal from '../../components/common/Modal';
-import { ADMIN_STATS, MOCK_ALL_STUDENTS, MOCK_TEACHERS, CLEARANCE_PERIOD } from '../../utils/mockData';
 import '../../styles/dashboard.css';
+
+// Temporary empty data until we connect to Supabase
+const ADMIN_STATS = {
+  totalStudents: 0,
+  cleared: 0,
+  pending: 0,
+  rejected: 0,
+  held: 0,
+  departments: [],
+};
+const MOCK_ALL_STUDENTS = [];
+const MOCK_TEACHERS = [];
+const CLEARANCE_PERIOD = {
+  semester: '1st Semester',
+  academicYear: '2024-2025',
+  startDate: '2024-11-01',
+  endDate: '2024-11-30',
+  isLocked: false,
+};
 
 const COLORS = ['#16a34a', '#FFD100', '#ea580c', '#dc2626', '#7c3aed'];
 
@@ -17,7 +35,9 @@ export default function AdminDashboard({ activeTab }) {
   const [addUserModal, setAddUserModal] = useState(false);
   const [search, setSearch] = useState('');
 
-  const overallPct = Math.round((ADMIN_STATS.cleared / ADMIN_STATS.totalStudents) * 100);
+  const overallPct = ADMIN_STATS.totalStudents > 0 
+    ? Math.round((ADMIN_STATS.cleared / ADMIN_STATS.totalStudents) * 100)
+    : 0;
 
   const pieData = [
     { name: 'Cleared', value: ADMIN_STATS.cleared },
