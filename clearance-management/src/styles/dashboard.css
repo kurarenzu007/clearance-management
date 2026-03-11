@@ -568,24 +568,55 @@
   .admin-chart-grid {
     grid-template-columns: 1fr;
   }
+
+  .clearance-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+
+  .report-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
 }
 
 @media (max-width: 768px) {
   .clearance-overview {
     padding: var(--space-6);
+    border-radius: var(--radius-lg);
   }
 
   .overview-header {
     flex-direction: column;
     gap: var(--space-4);
+    align-items: flex-start;
+  }
+
+  .overview-greeting {
+    font-size: 1.25rem;
+  }
+
+  .overview-subtitle {
+    font-size: 0.875rem;
+  }
+
+  .overview-status-chip {
+    align-self: flex-start;
   }
 
   .overview-footer-stats {
     gap: var(--space-4);
+    flex-wrap: wrap;
+  }
+
+  .overview-foot-stat-num {
+    font-size: 1.375rem;
   }
 
   .clearance-grid {
     grid-template-columns: 1fr;
+  }
+
+  .clearance-card {
+    padding: var(--space-4);
   }
 
   .teacher-filters {
@@ -593,42 +624,62 @@
     flex-wrap: nowrap;
     -webkit-overflow-scrolling: touch;
     padding-bottom: var(--space-2);
+    scrollbar-width: none;
+  }
+
+  .teacher-filters::-webkit-scrollbar {
+    display: none;
   }
 
   .filter-chip {
     flex-shrink: 0;
+    white-space: nowrap;
   }
 
   .student-row-actions {
-    flex-direction: column;
-    gap: var(--space-1);
+    flex-wrap: wrap;
   }
 
   .bulk-actions-bar {
     flex-direction: column;
     gap: var(--space-3);
     text-align: center;
+    padding: var(--space-4);
+  }
+
+  .bulk-actions-buttons {
+    width: 100%;
+    justify-content: center;
   }
 
   .period-lock-card {
     flex-direction: column;
     gap: var(--space-4);
     text-align: center;
+    padding: var(--space-5);
+  }
+
+  .chart-card {
+    padding: var(--space-5);
+  }
+
+  .chart-title {
+    font-size: 0.9375rem;
   }
 
   /* Responsive table for mobile */
   .data-table {
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
   }
 
   .data-table th {
-    padding: 8px 10px;
-    font-size: 0.7rem;
+    padding: 10px 12px;
+    font-size: 0.6875rem;
   }
 
   .data-table td {
-    padding: 8px 10px;
-    font-size: 0.75rem;
+    padding: 10px 12px;
+    font-size: 0.8125rem;
   }
 
   .user-info-cell {
@@ -655,32 +706,160 @@
   }
 
   .action-btn svg {
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
   }
 
-  /* Hide less important columns on very small screens */
-  @media (max-width: 640px) {
-    .data-table th:nth-child(3),
-    .data-table td:nth-child(3),
-    .data-table th:nth-child(6),
-    .data-table td:nth-child(6) {
-      display: none;
-    }
+  .certificate-ready {
+    padding: var(--space-6);
+    border-radius: var(--radius-lg);
+  }
+
+  .certificate-icon {
+    width: 60px;
+    height: 60px;
+    font-size: 1.75rem;
+  }
+
+  .certificate-title {
+    font-size: 1.25rem;
+  }
+
+  .certificate-sub {
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .clearance-overview {
+    padding: var(--space-5);
+  }
+
+  .overview-greeting {
+    font-size: 1.125rem;
+  }
+
+  .overview-progress-label {
+    font-size: 0.8125rem;
+  }
+
+  .overview-footer-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-3);
+  }
+
+  .clearance-card {
+    padding: var(--space-4);
+  }
+
+  .subject-name {
+    font-size: 0.9375rem;
+  }
+
+  .clearance-card-teacher {
+    font-size: 0.8125rem;
+  }
+
+  .clearance-card-remark {
+    font-size: 0.75rem;
+    padding: var(--space-2);
+  }
+
+  /* Hide less important table columns */
+  .data-table th:nth-child(4),
+  .data-table td:nth-child(4) {
+    display: none;
+  }
+
+  .report-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .report-card {
+    padding: var(--space-5);
   }
 }
 
 @media (max-width: 480px) {
-  .data-table {
+  .clearance-overview {
+    padding: var(--space-4);
+  }
+
+  .overview-greeting {
+    font-size: 1rem;
+  }
+
+  .overview-subtitle {
+    font-size: 0.8125rem;
+  }
+
+  .overview-status-chip {
+    font-size: 0.75rem;
+    padding: 5px 12px;
+  }
+
+  .overview-progress-label {
+    font-size: 0.75rem;
+  }
+
+  .overview-progress-bar {
+    height: 8px;
+  }
+
+  .overview-footer-stats {
+    gap: var(--space-3);
+  }
+
+  .overview-foot-stat-num {
+    font-size: 1.25rem;
+  }
+
+  .overview-foot-stat-label {
     font-size: 0.6875rem;
   }
 
+  .clearance-card {
+    padding: var(--space-3);
+  }
+
+  .subject-name {
+    font-size: 0.875rem;
+  }
+
+  .subject-code {
+    font-size: 0.6875rem;
+  }
+
+  .clearance-card-teacher {
+    font-size: 0.75rem;
+  }
+
+  .clearance-card-remark {
+    font-size: 0.6875rem;
+    padding: var(--space-2);
+  }
+
+  .teacher-filters {
+    gap: var(--space-2);
+  }
+
+  .filter-chip {
+    font-size: 0.75rem;
+    padding: 6px 14px;
+  }
+
+  .data-table {
+    font-size: 0.75rem;
+  }
+
   .data-table th {
-    padding: 6px 8px;
+    padding: 8px 10px;
+    font-size: 0.625rem;
   }
 
   .data-table td {
-    padding: 6px 8px;
+    padding: 8px 10px;
+    font-size: 0.75rem;
   }
 
   .user-info-cell {
@@ -707,7 +886,105 @@
   }
 
   .action-btn svg {
-    width: 10px;
-    height: 10px;
+    width: 12px;
+    height: 12px;
+  }
+
+  .bulk-actions-bar {
+    padding: var(--space-3);
+  }
+
+  .bulk-actions-bar span {
+    font-size: 0.8125rem;
+  }
+
+  .period-lock-card {
+    padding: var(--space-4);
+  }
+
+  .period-lock-info h3 {
+    font-size: 0.9375rem;
+  }
+
+  .period-lock-info p {
+    font-size: 0.8125rem;
+  }
+
+  .chart-card {
+    padding: var(--space-4);
+  }
+
+  .chart-title {
+    font-size: 0.875rem;
+  }
+
+  .chart-subtitle {
+    font-size: 0.75rem;
+  }
+
+  .legend-item {
+    font-size: 0.8125rem;
+  }
+
+  .legend-value {
+    font-size: 0.75rem;
+  }
+
+  .certificate-ready {
+    padding: var(--space-5);
+  }
+
+  .certificate-icon {
+    width: 52px;
+    height: 52px;
+    font-size: 1.5rem;
+  }
+
+  .certificate-title {
+    font-size: 1.125rem;
+  }
+
+  .certificate-sub {
+    font-size: 0.8125rem;
+  }
+
+  .report-card {
+    padding: var(--space-4);
+  }
+
+  .report-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .report-name {
+    font-size: 0.875rem;
+  }
+
+  .report-desc {
+    font-size: 0.75rem;
+  }
+
+  /* Hide more table columns on very small screens */
+  .data-table th:nth-child(3),
+  .data-table td:nth-child(3),
+  .data-table th:nth-child(5),
+  .data-table td:nth-child(5) {
+    display: none;
+  }
+}
+
+@media (max-width: 360px) {
+  .overview-footer-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-chip {
+    font-size: 0.6875rem;
+    padding: 5px 12px;
   }
 }

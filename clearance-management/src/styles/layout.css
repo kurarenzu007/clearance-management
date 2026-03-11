@@ -384,6 +384,10 @@
   .main-content {
     padding: var(--space-6);
   }
+
+  .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
 }
 
 @media (max-width: 768px) {
@@ -412,6 +416,15 @@
     padding: var(--space-5) var(--space-4);
   }
 
+  .topbar {
+    height: 56px;
+    padding: 0 var(--space-4);
+  }
+
+  .topbar-title {
+    font-size: 0.9375rem;
+  }
+
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: var(--space-3);
@@ -421,27 +434,144 @@
     padding: var(--space-4);
   }
 
+  .stat-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
+
   .stat-value {
     font-size: 1.5rem;
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
   }
 
   .section-header {
     flex-direction: column;
     align-items: flex-start;
+    gap: var(--space-3);
   }
 
-  .modal {
-    margin: var(--space-3);
-    width: calc(100% - 2 * var(--space-3));
+  .section-title {
+    font-size: 1.125rem;
+  }
+
+  /* Table responsiveness */
+  .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .data-table {
+    min-width: 600px;
+  }
+
+  /* Button adjustments */
+  .btn {
+    font-size: 0.8125rem;
+    padding: 8px 16px;
+  }
+
+  .btn-sm {
+    padding: 5px 12px;
+    font-size: 0.75rem;
+  }
+
+  /* Notification button */
+  .notification-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .topbar-actions {
+    gap: var(--space-1);
+  }
+}
+
+@media (max-width: 640px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-card {
+    padding: var(--space-5);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .stat-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 1.25rem;
+  }
+
+  .stat-content {
+    flex: 1;
+  }
+
+  .stat-value {
+    font-size: 1.75rem;
   }
 }
 
 @media (max-width: 480px) {
-  .stats-grid {
-    grid-template-columns: 1fr 1fr;
+  .topbar {
+    padding: 0 var(--space-3);
+    height: 52px;
   }
 
-  .topbar {
-    padding: 0 var(--space-4);
+  .topbar-title {
+    font-size: 0.875rem;
+  }
+
+  .main-content {
+    padding: var(--space-4) var(--space-3);
+  }
+
+  .section-title {
+    font-size: 1rem;
+  }
+
+  .section-subtitle {
+    font-size: 0.8125rem;
+  }
+
+  /* Compact stat cards */
+  .stat-card {
+    padding: var(--space-4);
+  }
+
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.125rem;
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
+  }
+
+  .stat-label {
+    font-size: 0.6875rem;
+  }
+
+  /* Buttons full width on very small screens */
+  .section-header .btn {
+    width: 100%;
+  }
+
+  /* Card adjustments */
+  .card {
+    border-radius: var(--radius-md);
+  }
+
+  /* Badge sizing */
+  .badge {
+    font-size: 0.6875rem;
+    padding: 2px 8px;
   }
 }

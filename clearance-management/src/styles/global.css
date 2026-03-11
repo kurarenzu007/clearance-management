@@ -564,6 +564,91 @@ ul, ol {
   gap: 4px;
 }
 
+/* ============================
+   MOBILE RESPONSIVE MODALS
+   ============================ */
+
+@media (max-width: 768px) {
+  .modal-overlay {
+    padding: var(--space-2);
+    align-items: flex-end;
+  }
+
+  .modal {
+    max-height: 90vh;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    animation: slideUpMobile 0.3s ease;
+  }
+
+  .modal--sm,
+  .modal--md,
+  .modal--lg {
+    max-width: 100%;
+  }
+
+  .modal-header {
+    padding: 12px var(--space-4);
+  }
+
+  .modal-title {
+    font-size: 0.875rem;
+  }
+
+  .modal-body {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .modal-footer {
+    padding: var(--space-3) var(--space-4);
+    flex-direction: column-reverse;
+  }
+
+  .modal-footer .btn {
+    width: 100%;
+  }
+
+  /* Single column form on mobile */
+  .modal-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-overlay {
+    padding: 0;
+  }
+
+  .modal {
+    max-height: 100vh;
+    border-radius: 0;
+    height: 100%;
+  }
+
+  .modal-header {
+    padding: 10px var(--space-3);
+  }
+
+  .modal-body {
+    padding: var(--space-3);
+  }
+
+  .modal-footer {
+    padding: var(--space-3);
+  }
+}
+
+@keyframes slideUpMobile {
+  from { 
+    opacity: 0; 
+    transform: translateY(100%); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
 /* Empty state */
 .empty-state {
   display: flex;
@@ -704,4 +789,107 @@ ul, ol {
 /* Toast override */
 .toast-container {
   font-family: var(--font-sans) !important;
+}
+
+/* ============================
+   ADDITIONAL MOBILE UTILITIES
+   ============================ */
+
+/* Touch-friendly tap targets */
+@media (max-width: 768px) {
+  button,
+  a,
+  .btn,
+  .nav-item {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Prevent text selection on buttons */
+  button,
+  .btn {
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  /* Smooth scrolling for mobile */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Form inputs larger on mobile */
+  .form-input,
+  .form-select,
+  .form-textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+
+  /* Hide scrollbars but keep functionality */
+  .sidebar-nav::-webkit-scrollbar,
+  .modal-body::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+}
+
+/* Landscape mobile adjustments */
+@media (max-width: 768px) and (orientation: landscape) {
+  .modal {
+    max-height: 85vh;
+  }
+
+  .clearance-overview {
+    padding: var(--space-4);
+  }
+
+  .overview-greeting {
+    font-size: 1rem;
+  }
+}
+
+/* Very small devices */
+@media (max-width: 360px) {
+  :root {
+    --space-1: 3px;
+    --space-2: 6px;
+    --space-3: 10px;
+    --space-4: 14px;
+    --space-5: 18px;
+    --space-6: 22px;
+  }
+
+  .btn {
+    padding: 7px 14px;
+    font-size: 0.75rem;
+  }
+
+  .section-title {
+    font-size: 0.9375rem;
+  }
+}
+
+/* Print styles */
+@media print {
+  .sidebar,
+  .topbar,
+  .btn,
+  .modal-overlay,
+  .notification-btn {
+    display: none !important;
+  }
+
+  .main-wrapper {
+    margin-left: 0;
+  }
+
+  .main-content {
+    padding: 0;
+  }
+
+  .card,
+  .stat-card {
+    break-inside: avoid;
+    box-shadow: none;
+    border: 1px solid var(--gray-300);
+  }
 }
