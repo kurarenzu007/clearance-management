@@ -1,38 +1,9 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { authService } from '../services/authService';
 
 const AuthContext = createContext(null);
 
 const STORAGE_KEY = 'scms_user';
-
-const MOCK_USERS = {
-  student: {
-    id: 'STU-2024-001',
-    name: 'Maria Santos',
-    email: 'maria.santos@university.edu',
-    role: 'student',
-    course: 'BS Computer Science',
-    year: '3rd Year',
-    section: 'CS-3A',
-    avatar: 'MS',
-  },
-  teacher: {
-    id: 'FAC-2024-042',
-    name: 'Prof. Juan Dela Cruz',
-    email: 'j.delacruz@university.edu',
-    role: 'teacher',
-    department: 'College of Engineering',
-    subjects: ['CS101', 'CS201', 'CS301'],
-    avatar: 'JD',
-  },
-  admin: {
-    id: 'ADM-2024-001',
-    name: 'Dr. Reyes',
-    email: 'admin@university.edu',
-    role: 'admin',
-    department: 'Registrar',
-    avatar: 'DR',
-  },
-};
 
 function getStoredUser() {
   try {
@@ -48,36 +19,84 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Check for existing session on mount
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const profile = await authService.getCurrentUserProfile();
+        if (profile) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+          setUser(profile);
+        }
+      } catch (err) {
+        console.error('Session check failed:', err);
+        localStorage.removeItem(STORAGE_KEY);
+        setUser(null);
+      }
+    };
+
+    checkSession();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = authService.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        try {
+          const profile = await authService.getCurrentUserProfile();
+          if (profile) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+            setUser(profile);
+          }
+        } catch (err) {
+          console.error('Failed to fetch profile:', err);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        localStorage.removeItem(STORAGE_KEY);
+        setUser(null);
+      }
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, []);
+
   const login = useCallback(async (credentials) => {
     setLoading(true);
     setError(null);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 900));
+      const { email, password } = credentials;
 
-      const { role, password } = credentials;
-
-      if (password !== 'demo123') {
-        throw new Error('Invalid credentials. Use password: demo123');
+      if (!email || !password) {
+        throw new Error('Email and password are required');
       }
 
-      const mockUser = MOCK_USERS[role];
-      if (!mockUser) throw new Error('Invalid role selected');
+      const { profile } = await authService.signIn(email, password);
 
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(mockUser));
-      setUser(mockUser);
-      return mockUser;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+      setUser(profile);
+      return profile;
     } catch (err) {
-      setError(err.message);
-      throw err;
+      const errorMessage = err.message || 'Invalid credentials';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
-    setUser(null);
-    setError(null);
+  const logout = useCallback(async () => {
+    try {
+      await authService.signOut();
+      localStorage.removeItem(STORAGE_KEY);
+      setUser(null);
+      setError(null);
+    } catch (err) {
+      console.error('Logout failed:', err);
+      // Still clear local state even if API call fails
+      localStorage.removeItem(STORAGE_KEY);
+      setUser(null);
+      setError(null);
+    }
   }, []);
 
   return (
