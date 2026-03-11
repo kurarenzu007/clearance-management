@@ -8,43 +8,32 @@ const ROLES = [
   { id: 'admin', label: 'Admin', icon: '⊗' },
 ];
 
-const DEMO_IDS = {
-  student: 'STU-2024-001',
-  teacher: 'FAC-2024-042',
-  admin: 'ADM-2024-001',
-};
-
 export default function LoginPage() {
   const { login, loading } = useAuth();
   const [role, setRole] = useState('student');
-  const [id, setId] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState('');
 
   const handleRoleChange = (newRole) => {
     setRole(newRole);
-    setId(DEMO_IDS[newRole]);
+    setEmail('');
     setFormError('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!id.trim() || !password.trim()) {
+    if (!email.trim() || !password.trim()) {
       setFormError('Please fill in all fields.');
       return;
     }
     setFormError('');
     try {
-      await login({ role, id, password });
+      await login({ email, password });
     } catch (err) {
-      setFormError(err.message);
+      setFormError(err.message || 'Invalid credentials');
     }
-  };
-
-  const fillDemo = () => {
-    setId(DEMO_IDS[role]);
-    setPassword('demo123');
   };
 
   return (
@@ -129,22 +118,22 @@ export default function LoginPage() {
 
         <form className="login-form" onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label" htmlFor="user-id">
-              {role === 'student' ? 'Student ID' : role === 'teacher' ? 'Faculty ID' : 'Admin ID'}
+            <label className="form-label" htmlFor="email">
+              Email Address
             </label>
             <div className="input-wrapper">
               <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                <circle cx="12" cy="7" r="4"/>
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
               </svg>
               <input
-                id="user-id"
-                type="text"
+                id="email"
+                type="email"
                 className="form-input input-with-icon"
-                placeholder={`e.g. ${DEMO_IDS[role]}`}
-                value={id}
-                onChange={(e) => setId(e.target.value)}
-                autoComplete="username"
+                placeholder={`${role}@school.edu`}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
               />
             </div>
           </div>
@@ -185,10 +174,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <span className="forgot-link" onClick={fillDemo}>
-            Use demo credentials →
-          </span>
-
           {formError && (
             <div style={{
               background: 'var(--red-light)',
@@ -217,19 +202,6 @@ export default function LoginPage() {
             )}
           </button>
         </form>
-
-        {/* Demo credentials box */}
-        <div style={{ marginTop: 'var(--space-6)' }}>
-          <div className="demo-creds">
-            <div className="demo-creds-title">Demo Access</div>
-            {ROLES.map((r) => (
-              <div key={r.id} className="demo-cred-row">
-                <span>{r.label}:</span>
-                <code>{DEMO_IDS[r.id]} / demo123</code>
-              </div>
-            ))}
-          </div>
-        </div>
 
         <div className="login-footer">
           Student Clearance Management System &copy; 2024
