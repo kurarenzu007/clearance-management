@@ -10,21 +10,22 @@ export const authService = {
 
     if (error) throw error;
 
-    // Fetch user profile — wrapped in a timeout so a slow/blocked RLS
-    // policy doesn't hang the UI indefinitely.
-    const profilePromise = supabase
+    // Fetch user profile
+    const { data: userData, error: userError } = await supabase
       .from('users')
       .select('*')
       .eq('id', data.user.id)
       .single();
 
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Profile fetch timed out. Check your Supabase RLS policies.')), 8000)
-    );
-
-    const { data: userData, error: userError } = await Promise.race([profilePromise, timeoutPromise]);
-
-    if (userError) throw userError;
+    if (userError) {
+      // Sign out if profile fetch fails so auth state stays clean
+      await supabase.auth.signOut().catch(() => {});
+      throw new Error(
+        userError.code === 'PGRST116'
+          ? 'No profile found for this account. Contact your administrator.'
+          : userError.message
+      );
+    }
 
     return { user: data.user, profile: userData };
   },

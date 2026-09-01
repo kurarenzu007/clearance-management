@@ -122,7 +122,7 @@ export default function Sidebar({ activeTab, onTabChange, isOpen, onClose }) {
             </div>
             <div className="sidebar-user-info">
               <div className="sidebar-user-name">{user?.name}</div>
-              <div className="sidebar-user-role">{user?.id}</div>
+              <div className="sidebar-user-role" style={{ textTransform: 'capitalize' }}>{user?.role}</div>
             </div>
             <button
               onClick={logout}
