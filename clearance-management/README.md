@@ -1,55 +1,58 @@
 # 🎓 SCMS — Student Clearance Management System
 
-A full-stack web application for digitizing and automating student clearance workflows.
+A full-stack web application for digitizing and automating student clearance workflows at STI. Students, faculty, and administrators manage clearances in real time — no paper, no queues.
 
-**Color Palette:** `#003DA5` · `#FFD100` · `#FFFFFF`  
-**Stack:** React + Vanilla CSS (Frontend) · Node.js/Express + PostgreSQL (Backend)
+**Stack:** React 19 + Vite · Supabase (PostgreSQL + Auth + RLS) · Recharts  
+**Color Palette:** `#003DA5` (Blue) · `#FFD100` (Yellow) · `#FFFFFF` (White)  
+**Live Demo:** [sti-clearance.vercel.app](https://sti-clearance.vercel.app)
 
 ---
 
 ## 📁 Project Structure
 
 ```
-scms/
-├── frontend/                   # React app (Vite)
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── common/         # Sidebar, Topbar, Modal, StatusBadge
-│   │   │   ├── student/
-│   │   │   ├── teacher/
-│   │   │   └── admin/
-│   │   ├── pages/
-│   │   │   ├── LoginPage.jsx
-│   │   │   ├── AppShell.jsx    # Main layout wrapper
-│   │   │   ├── student/        # StudentDashboard
-│   │   │   ├── teacher/        # TeacherDashboard
-│   │   │   └── admin/          # AdminDashboard
-│   │   ├── styles/
-│   │   │   ├── global.css      # Variables, resets, shared components
-│   │   │   ├── layout.css      # Sidebar, topbar, main wrapper
-│   │   │   ├── login.css       # Login page styles
-│   │   │   └── dashboard.css   # Dashboard-specific styles
-│   │   ├── context/
-│   │   │   └── AuthContext.jsx # Global auth state
-│   │   └── utils/
-│   │       └── mockData.js     # Demo data (replace with API calls)
-│   └── package.json
-│
-└── backend/                    # Express REST API
-    ├── src/
-    │   ├── config/
-    │   │   ├── db.js           # PostgreSQL pool
-    │   │   └── schema.sql      # Database schema
-    │   ├── controllers/
-    │   │   ├── authController.js
-    │   │   └── clearanceController.js
-    │   ├── middleware/
-    │   │   └── auth.js         # JWT auth + role guard
-    │   ├── routes/
-    │   │   └── index.js        # All API routes
-    │   └── index.js            # Express server entry
-    ├── .env.example
-    └── package.json
+clearance-management/
+├── public/
+│   └── STI_LOGO.jpg
+├── src/
+│   ├── components/
+│   │   └── common/
+│   │       ├── Modal.jsx          # Reusable modal
+│   │       ├── Sidebar.jsx        # Role-aware navigation sidebar
+│   │       ├── StatusBadge.jsx    # Clearance status pill
+│   │       └── Topbar.jsx         # Top navigation bar
+│   ├── context/
+│   │   └── AuthContext.jsx        # Global auth state (Supabase session)
+│   ├── lib/
+│   │   └── supabase.js            # Supabase client
+│   ├── pages/
+│   │   ├── AppShell.jsx           # Main layout wrapper + role routing
+│   │   ├── LoginPage.jsx          # Login with role-tab validation
+│   │   ├── admin/
+│   │   │   └── AdminDashboard.jsx
+│   │   ├── student/
+│   │   │   └── StudentDashboard.jsx
+│   │   └── teacher/
+│   │       └── TeacherDashboard.jsx
+│   ├── services/
+│   │   ├── authService.js         # Supabase Auth wrapper
+│   │   ├── clearanceService.js    # Clearances CRUD + stats RPC
+│   │   ├── settingsService.js     # system_settings CRUD
+│   │   ├── subjectService.js      # Subjects CRUD
+│   │   └── userService.js         # Users CRUD
+│   ├── styles/
+│   │   ├── dashboard.css
+│   │   ├── global.css
+│   │   ├── layout.css
+│   │   └── login.css
+│   ├── App.jsx
+│   └── main.jsx
+├── supabase-schema.sql            # Full DB schema + RLS + triggers
+├── supabase-rls-migration.sql     # RLS fix migration (run after schema)
+├── supabase-seed-data.sql         # Sample accounts and clearance data
+├── .env.example
+├── vite.config.js
+└── vercel.json
 ```
 
 ---
@@ -57,101 +60,174 @@ scms/
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 - Node.js 18+
-- PostgreSQL 14+
-- npm or yarn
+- A [Supabase](https://supabase.com) project (free tier works)
 
----
-
-### Frontend Setup
+### 1. Clone & Install
 
 ```bash
-cd frontend
+git clone https://github.com/your-org/clearance-management.git
+cd clearance-management
 npm install
+```
+
+### 2. Configure Environment
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and fill in your Supabase project values:
+
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+Both values are found in your Supabase dashboard under **Project Settings → API**.
+
+### 3. Set Up the Database
+
+In your Supabase project, open the **SQL Editor** and run these files in order:
+
+| Step | File | Purpose |
+|------|------|---------|
+| 1 | `supabase-schema.sql` | Creates all tables, indexes, RLS policies, and triggers |
+| 2 | `supabase-rls-migration.sql` | Replaces recursive RLS policies with `is_admin()` helper + adds cross-role visibility |
+| 3 | `supabase-seed-data.sql` | Creates sample auth users and profile rows |
+
+### 4. Run the App
+
+```bash
 npm run dev
 # → http://localhost:5173
 ```
 
-**Demo Login Credentials:**
-| Role    | ID              | Password  |
-|---------|-----------------|-----------|
-| Student | STU-2024-001    | demo123   |
-| Faculty | FAC-2024-042    | demo123   |
-| Admin   | ADM-2024-001    | demo123   |
-
 ---
 
-### Backend Setup
+## � Sample Login Credentials
 
-```bash
-cd backend
-cp .env.example .env
-# Edit .env with your PostgreSQL credentials
+These are created by `supabase-seed-data.sql`:
 
-npm install
-```
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | `admin1@school.edu` | `admin123` |
+| Admin | `admin2@school.edu` | `admin123` |
+| Teacher | `teacher1@school.edu` | `teacher123` |
+| Teacher | `teacher2@school.edu` | `teacher123` |
+| Student | `student1@school.edu` | `student123` |
+| Student | `student2@school.edu` | `student123` |
 
-**Create the database:**
-```bash
-psql -U postgres -c "CREATE DATABASE scms_db;"
-psql -U postgres -d scms_db -f src/config/schema.sql
-```
-
-**Start the API server:**
-```bash
-npm run dev
-# → http://localhost:3001
-```
-
----
-
-## 🔐 API Endpoints
-
-| Method | Endpoint                       | Role           | Description                    |
-|--------|-------------------------------|----------------|--------------------------------|
-| POST   | `/api/auth/login`             | All            | Login and get JWT token        |
-| GET    | `/api/auth/me`                | All            | Get current user               |
-| GET    | `/api/clearance/my`           | Student        | Get my clearance status        |
-| GET    | `/api/clearance/students`     | Teacher/Admin  | Get students list              |
-| PUT    | `/api/clearance/:id`          | Teacher/Admin  | Update clearance status        |
-| PUT    | `/api/clearance/bulk`         | Teacher/Admin  | Bulk update statuses           |
-| GET    | `/api/clearance/all`          | Admin          | Get all records (paginated)    |
-| GET    | `/api/clearance/summary`      | Admin          | Get stats summary              |
+> The login page validates that the selected role tab matches the account's actual role. Selecting the wrong tab will reject the login with an informative message.
 
 ---
 
 ## ✨ Features
 
 ### Student Portal
-- Login with Student ID
-- Real-time clearance progress overview
-- View status per subject/teacher (Cleared / Pending / Held / Rejected)
-- See teacher remarks and action items
-- Download clearance certificate (PDF) when fully cleared
+- Clearance progress overview with percentage bar
+- Per-subject status cards (Cleared / Pending / Held / Rejected / Deficiency)
+- Teacher remarks displayed per clearance item
+- Filter clearances by status
+- Download PDF clearance certificate when fully cleared (browser print dialog)
 
-### Teacher Portal  
-- View list of assigned students
-- Approve / Reject / Hold clearance with remarks
-- Bulk approve multiple students
-- Filter and search by status
-- Inline action buttons per student
+### Teacher Portal
+- Dashboard overview of assigned students by status
+- Approve, Hold, or Reject individual clearances with a remark
+- Bulk approve multiple students at once
+- Search and filter students by name, ID, or status
+- All actions persist to Supabase in real time
 
 ### Admin Panel
-- Statistics dashboard with bar + pie charts
-- Manage students and faculty accounts
-- Assign teachers to subjects
-- Monitor clearance progress per department
-- Generate reports (Cleared / Pending / Deficiency / Full Summary)
-- Lock/Unlock clearance period per semester
+- Live stats dashboard: total students, cleared, pending, rejected
+- Bar chart (clearance by department) and donut chart (status breakdown)
+- Clearance period lock/unlock toggle — persisted to `system_settings`
+- Full student management: add, view, edit
+- Full faculty management: add, view, assign subjects
+- Department summary table with progress bars
+- Export PDF reports (Cleared Students, Pending List, Deficiency Report, Full Summary)
+- System settings: configure academic year, semester, start/end dates
+
+---
+
+## 🗄️ Database Schema
+
+### Tables
+
+| Table | Description |
+|-------|-------------|
+| `users` | All users (students, teachers, admins) with role, department, year level |
+| `subjects` | Subjects linked to a teacher |
+| `clearances` | Per-student-per-subject clearance record with status |
+| `clearance_history` | Audit log of every status change |
+| `system_settings` | Key-value store for app config (lock state, academic year) |
+
+### Clearance Statuses
+
+`pending` → `cleared` / `rejected` / `held` / `deficiency`
+
+### RLS Summary
+
+Row Level Security is enabled on all tables. Key policies:
+
+- Users can read their own row; admins can read all rows
+- Teachers can read student rows linked via `clearances`
+- Students can read their teacher's row via `clearances`
+- Teachers can only update clearances where `teacher_id = auth.uid()`
+- All admin policies use the `is_admin()` SECURITY DEFINER function to prevent recursive query issues
+
+### Server-Side RPC
+
+`get_clearance_stats(p_user_id, p_role)` — returns aggregate status counts server-side (avoids fetching all rows client-side).
 
 ---
 
 ## 🎨 Design System
 
-| Token        | Value     | Usage                    |
-|-------------|-----------|--------------------------|
-| `--blue`    | `#003DA5` | Primary brand color      |
-| `--yellow`  | `#FFD100` | Accent, highlights, CTA  |
-| `--white`   | `#FFFFFF` | Backgrounds, text on dark|
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--blue` | `#003DA5` | Primary brand, nav active state |
+| `--yellow` | `#FFD100` | Accent, CTA buttons, highlights |
+| `--green` | `#16a34a` | Cleared status |
+| `--orange` | `#ea580c` | Held / on-hold status |
+| `--red` | `#dc2626` | Rejected status |
 
-Font pairing: **Plus Jakarta Sans** (UI) + **Space Mono** (code, numbers)
+**Fonts:** Plus Jakarta Sans (UI) · Space Mono (IDs, numbers, monospace)
+
+---
+
+## 🛠️ Scripts
+
+```bash
+npm run dev       # Start dev server (localhost:5173)
+npm run build     # Production build
+npm run preview   # Preview production build locally
+npm run lint      # ESLint check
+```
+
+---
+
+## 📦 Key Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `react` | 19 | UI framework |
+| `@supabase/supabase-js` | 2 | Database, Auth, RLS client |
+| `recharts` | 3 | Bar and pie charts |
+| `react-router-dom` | 7 | Client-side routing |
+| `react-hot-toast` | 2 | Toast notifications |
+| `vite` | 7 | Build tool and dev server |
+
+---
+
+## 🚢 Deployment
+
+The project includes a `vercel.json` configured for SPA routing. Deploy with:
+
+```bash
+npm run build
+# then push to GitHub and import the repo in vercel.com
+```
+
+Make sure to add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as Environment Variables in your Vercel project settings.
