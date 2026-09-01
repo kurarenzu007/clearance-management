@@ -7,7 +7,7 @@ export const subjectService = {
       .from('subjects')
       .select(`
         *,
-        teacher:users(*)
+        teacher:users(name, role, department)
       `)
       .order('code', { ascending: true });
 
@@ -21,7 +21,7 @@ export const subjectService = {
       .from('subjects')
       .select(`
         *,
-        teacher:users(*)
+        teacher:users(name, role, department)
       `)
       .eq('id', subjectId)
       .single();

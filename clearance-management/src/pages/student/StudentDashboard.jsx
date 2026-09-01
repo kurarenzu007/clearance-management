@@ -1,36 +1,95 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import StatusBadge from '../../components/common/StatusBadge';
 import Modal from '../../components/common/Modal';
+import { clearanceService } from '../../services/clearanceService';
 import '../../styles/dashboard.css';
 
-// Temporary empty data until we connect to Supabase
-const MOCK_CLEARANCES = [];
-
-const statusOrder = { rejected: 0, held: 1, pending: 2, cleared: 3 };
+const statusOrder = { rejected: 0, held: 1, deficiency: 1, pending: 2, cleared: 3 };
 
 export default function StudentDashboard({ activeTab }) {
   const { user } = useAuth();
-  const [clearances] = useState(MOCK_CLEARANCES);
+  const [clearances, setClearances] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedCard, setSelectedCard] = useState(null);
   const [filter, setFilter] = useState('all');
 
+  const fetchClearances = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await clearanceService.getStudentClearances(user.id);
+      setClearances(data);
+    } catch (err) {
+      console.error('Failed to load clearances:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [user.id]);
+
+  useEffect(() => { fetchClearances(); }, [fetchClearances]);
+
+  // Normalise DB rows to shape the UI expects
+  const normalised = clearances.map((c) => ({
+    id:        c.id,
+    subject:   c.subject?.name  ?? '—',
+    code:      c.subject?.code  ?? '—',
+    teacher:   c.teacher?.name  ?? '—',
+    status:    c.status,
+    remark:    c.remarks,
+    clearedAt: c.cleared_at,
+  }));
+
   const counts = {
-    total: clearances.length,
-    cleared: clearances.filter((c) => c.status === 'cleared').length,
-    pending: clearances.filter((c) => c.status === 'pending').length,
-    held: clearances.filter((c) => c.status === 'held').length,
-    rejected: clearances.filter((c) => c.status === 'rejected').length,
+    total:    normalised.length,
+    cleared:  normalised.filter((c) => c.status === 'cleared').length,
+    pending:  normalised.filter((c) => c.status === 'pending').length,
+    held:     normalised.filter((c) => c.status === 'held').length,
+    rejected: normalised.filter((c) => c.status === 'rejected').length,
   };
 
-  const pct = Math.round((counts.cleared / counts.total) * 100);
-  const isFullyCleared = counts.cleared === counts.total;
+  const pct = counts.total > 0 ? Math.round((counts.cleared / counts.total) * 100) : 0;
+  const isFullyCleared = counts.total > 0 && counts.cleared === counts.total;
 
   const filtered = filter === 'all'
-    ? [...clearances].sort((a, b) => statusOrder[a.status] - statusOrder[b.status])
-    : clearances.filter((c) => c.status === filter);
+    ? [...normalised].sort((a, b) => statusOrder[a.status] - statusOrder[b.status])
+    : normalised.filter((c) => c.status === filter);
 
-  // Shared detail modal — used by both Dashboard and Clearance tabs
+  const handleDownloadCertificate = () => {
+    const win = window.open('', '_blank');
+    win.document.write(`
+      <html><head><title>Clearance Certificate</title>
+      <style>
+        body { font-family: serif; padding: 60px; max-width: 700px; margin: 0 auto; }
+        h1 { text-align:center; color:#003DA5; }
+        .subtitle { text-align:center; color:#555; margin-bottom:40px; }
+        .name { text-align:center; font-size:1.8rem; font-weight:700; margin:30px 0; }
+        .body { line-height:2; }
+        .footer { margin-top:60px; display:flex; justify-content:space-between; }
+        .sig { text-align:center; }
+        .sig-line { border-top:1px solid #333; width:180px; margin:0 auto 4px; }
+      </style></head>
+      <body>
+        <h1>STUDENT CLEARANCE CERTIFICATE</h1>
+        <p class="subtitle">Student Clearance Management System</p>
+        <p class="body">This is to certify that</p>
+        <p class="name">${user.name}</p>
+        <p class="body">
+          Student ID: <strong>${user.student_id ?? '—'}</strong><br/>
+          Department: <strong>${user.department ?? '—'}</strong><br/>
+          has satisfactorily complied with all academic and administrative clearance requirements
+          for the current semester.
+        </p>
+        <p class="body">Date Issued: <strong>${new Date().toLocaleDateString('en-PH', { dateStyle: 'long' })}</strong></p>
+        <div class="footer">
+          <div class="sig"><div class="sig-line"></div>Registrar</div>
+          <div class="sig"><div class="sig-line"></div>Dean</div>
+        </div>
+      </body></html>`);
+    win.document.close();
+    win.print();
+  };
+
+  // Shared detail modal
   const detailModal = (
     <Modal
       isOpen={!!selectedCard}
@@ -47,11 +106,19 @@ export default function StudentDashboard({ activeTab }) {
     </Modal>
   );
 
+  if (loading) {
+    return (
+      <div className="empty-state">
+        <div className="spinner" style={{ margin: '0 auto' }} />
+        <p>Loading clearances…</p>
+      </div>
+    );
+  }
+
   // === Dashboard Tab ===
   if (activeTab === 'dashboard') {
     return (
       <div className="animate-fade-in">
-        {/* Overview hero card */}
         <div className="clearance-overview">
           <div className="overview-header">
             <div>
@@ -59,7 +126,7 @@ export default function StudentDashboard({ activeTab }) {
                 Hello, <span>{user.name.split(' ')[0]}</span>! 👋
               </div>
               <div className="overview-subtitle">
-                {user.course} · {user.year} · {user.section}
+                {user.department} · Year {user.year_level} · {user.section}
               </div>
             </div>
             <div className="overview-status-chip">
@@ -81,7 +148,7 @@ export default function StudentDashboard({ activeTab }) {
             {[
               { num: counts.cleared, label: 'Cleared' },
               { num: counts.pending, label: 'Pending' },
-              { num: counts.held, label: 'On Hold' },
+              { num: counts.held,    label: 'On Hold' },
               { num: counts.rejected, label: 'Rejected' },
             ].map((s) => (
               <div key={s.label}>
@@ -92,13 +159,12 @@ export default function StudentDashboard({ activeTab }) {
           </div>
         </div>
 
-        {/* Stats cards */}
         <div className="stats-grid stagger-children">
           {[
-            { label: 'Total Requirements', value: counts.total,  icon: '◈', color: '#003DA5', bg: '#e8effc', accent: '#003DA5' },
-            { label: 'Cleared',            value: counts.cleared, icon: '✓', color: 'var(--green)', bg: 'var(--green-light)', accent: 'var(--green)' },
-            { label: 'Pending Review',     value: counts.pending, icon: '◷', color: '#92400e', bg: 'var(--yellow-light)', accent: 'var(--yellow)' },
-            { label: 'Needs Attention',    value: counts.held + counts.rejected, icon: '!', color: 'var(--red)', bg: 'var(--red-light)', accent: 'var(--red)' },
+            { label: 'Total Requirements', value: counts.total,                      icon: '◈', color: '#003DA5',       bg: '#e8effc',            accent: '#003DA5' },
+            { label: 'Cleared',            value: counts.cleared,                    icon: '✓', color: 'var(--green)',  bg: 'var(--green-light)', accent: 'var(--green)' },
+            { label: 'Pending Review',     value: counts.pending,                    icon: '◷', color: '#92400e',       bg: 'var(--yellow-light)', accent: 'var(--yellow)' },
+            { label: 'Needs Attention',    value: counts.held + counts.rejected,     icon: '!', color: 'var(--red)',    bg: 'var(--red-light)',   accent: 'var(--red)' },
           ].map((s) => (
             <div key={s.label} className="stat-card animate-fade-in" style={{ '--accent-color': s.accent }}>
               <div className="stat-icon" style={{ background: s.bg, color: s.color, fontSize: '1.25rem' }}>{s.icon}</div>
@@ -108,7 +174,6 @@ export default function StudentDashboard({ activeTab }) {
           ))}
         </div>
 
-        {/* Recent clearances */}
         <div className="section-header">
           <div>
             <div className="section-title">Recent Updates</div>
@@ -117,7 +182,7 @@ export default function StudentDashboard({ activeTab }) {
         </div>
 
         <div className="clearance-grid stagger-children">
-          {[...clearances]
+          {[...normalised]
             .sort((a, b) => statusOrder[a.status] - statusOrder[b.status])
             .slice(0, 4)
             .map((c) => (
@@ -125,7 +190,6 @@ export default function StudentDashboard({ activeTab }) {
             ))}
         </div>
 
-        {/* Modal lives here too so dashboard-tab clicks work */}
         {detailModal}
       </div>
     );
@@ -145,7 +209,6 @@ export default function StudentDashboard({ activeTab }) {
           </div>
         </div>
 
-        {/* Filters */}
         <div className="teacher-filters" style={{ marginBottom: 'var(--space-5)' }}>
           {[
             { id: 'all',      label: `All (${counts.total})` },
@@ -184,7 +247,12 @@ export default function StudentDashboard({ activeTab }) {
             <div className="certificate-icon">🎓</div>
             <div className="certificate-title">Clearance Certificate Ready!</div>
             <div className="certificate-sub">All requirements have been cleared. Download your certificate now.</div>
-            <button className="btn btn-yellow btn-lg" style={{ marginTop: 'var(--space-2)' }}>
+            <button
+              className="btn btn-yellow btn-lg"
+              style={{ marginTop: 'var(--space-2)' }}
+              onClick={handleDownloadCertificate}
+              aria-label="Download clearance certificate as PDF"
+            >
               ↓ Download PDF Certificate
             </button>
           </div>
@@ -221,6 +289,10 @@ function ClearanceCard({ clearance, onClick }) {
       className={`clearance-card card-hover animate-fade-in ${clearance.status}`}
       onClick={onClick}
       style={{ cursor: 'pointer' }}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === 'Enter' && onClick()}
+      aria-label={`View details for ${clearance.subject}`}
     >
       <div className="clearance-card-top">
         <div>
@@ -231,7 +303,7 @@ function ClearanceCard({ clearance, onClick }) {
       </div>
 
       <div className="clearance-card-teacher">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
           <circle cx="12" cy="7" r="4"/>
         </svg>
@@ -255,32 +327,20 @@ function ClearanceCard({ clearance, onClick }) {
 
 function ClearanceDetailContent({ clearance }) {
   const STATUS_COLOR = {
-    cleared:  { border: 'var(--green)',  bg: 'var(--green-light)' },
-    pending:  { border: 'var(--yellow)', bg: 'var(--yellow-light)' },
-    held:     { border: 'var(--orange)', bg: 'var(--orange-light)' },
-    rejected: { border: 'var(--red)',    bg: 'var(--red-light)' },
+    cleared:    { border: 'var(--green)',  bg: 'var(--green-light)' },
+    pending:    { border: 'var(--yellow)', bg: 'var(--yellow-light)' },
+    held:       { border: 'var(--orange)', bg: 'var(--orange-light)' },
+    rejected:   { border: 'var(--red)',    bg: 'var(--red-light)' },
+    deficiency: { border: 'var(--orange)', bg: 'var(--orange-light)' },
   };
   const colors = STATUS_COLOR[clearance.status] || STATUS_COLOR.pending;
 
-  const lbl = {
-    fontSize: '0.6875rem', fontWeight: 700, color: 'var(--gray-400)',
-    textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2,
-  };
+  const lbl = { fontSize: '0.6875rem', fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 };
   const val = { fontWeight: 600, fontSize: '0.875rem', color: 'var(--gray-800)' };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-      {/* Subject header strip */}
-      <div style={{
-        background: colors.bg,
-        borderRadius: 'var(--radius-md)',
-        padding: '10px 12px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: 8,
-      }}>
+      <div style={{ background: colors.bg, borderRadius: 'var(--radius-md)', padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--gray-900)' }}>{clearance.subject}</div>
           <div style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--gray-500)', marginTop: 1 }}>{clearance.code}</div>
@@ -288,7 +348,6 @@ function ClearanceDetailContent({ clearance }) {
         <StatusBadge status={clearance.status} />
       </div>
 
-      {/* 2-col meta grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 16px' }}>
         <div>
           <div style={lbl}>Teacher</div>
@@ -301,24 +360,13 @@ function ClearanceDetailContent({ clearance }) {
         {clearance.clearedAt && (
           <div style={{ gridColumn: '1 / -1' }}>
             <div style={lbl}>Cleared On</div>
-            <div style={val}>
-              {new Date(clearance.clearedAt).toLocaleDateString('en-PH', { dateStyle: 'long' })}
-            </div>
+            <div style={val}>{new Date(clearance.clearedAt).toLocaleDateString('en-PH', { dateStyle: 'long' })}</div>
           </div>
         )}
       </div>
 
-      {/* Remark box */}
       {clearance.remark && (
-        <div style={{
-          background: 'var(--gray-50)',
-          borderLeft: `3px solid ${colors.border}`,
-          borderRadius: '0 var(--radius-sm) var(--radius-sm) 0',
-          padding: '8px 12px',
-          fontSize: '0.8125rem',
-          color: 'var(--gray-700)',
-          lineHeight: 1.55,
-        }}>
+        <div style={{ background: 'var(--gray-50)', borderLeft: `3px solid ${colors.border}`, borderRadius: '0 var(--radius-sm) var(--radius-sm) 0', padding: '8px 12px', fontSize: '0.8125rem', color: 'var(--gray-700)', lineHeight: 1.55 }}>
           <div style={{ ...lbl, color: 'var(--gray-500)', marginBottom: 4 }}>Remark from Teacher</div>
           {clearance.remark}
         </div>

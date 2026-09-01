@@ -6,9 +6,9 @@ export const clearanceService = {
     const { data, error } = await supabase
       .from('clearances')
       .select(`
-        *,
-        subject:subjects(*),
-        teacher:users!clearances_teacher_id_fkey(*)
+        id, status, remarks, cleared_at, created_at, updated_at,
+        subject:subjects(id, code, name, department),
+        teacher:users!clearances_teacher_id_fkey(name, role, department)
       `)
       .eq('student_id', studentId)
       .order('created_at', { ascending: false });
@@ -22,9 +22,10 @@ export const clearanceService = {
     let query = supabase
       .from('clearances')
       .select(`
-        *,
-        student:users!clearances_student_id_fkey(*),
-        subject:subjects(*)
+        id, status, remarks, cleared_at, created_at, updated_at,
+        student_id,
+        student:users!clearances_student_id_fkey(name, role, department, student_id, year_level),
+        subject:subjects(id, code, name)
       `)
       .eq('teacher_id', teacherId);
 
@@ -43,10 +44,11 @@ export const clearanceService = {
     let query = supabase
       .from('clearances')
       .select(`
-        *,
-        student:users!clearances_student_id_fkey(*),
-        teacher:users!clearances_teacher_id_fkey(*),
-        subject:subjects(*)
+        id, status, remarks, cleared_at, created_at, updated_at,
+        student_id, teacher_id, subject_id,
+        student:users!clearances_student_id_fkey(name, role, department, student_id, year_level),
+        teacher:users!clearances_teacher_id_fkey(name, role, department),
+        subject:subjects(id, code, name)
       `);
 
     if (filters.status) {
@@ -127,29 +129,31 @@ export const clearanceService = {
     return data;
   },
 
-  // Get clearance statistics
+  // Get clearance statistics via server-side RPC aggregate (Phase 4.2)
+  // Falls back to client-side count if the RPC is not yet deployed.
   async getClearanceStats(userId = null, role = null) {
-    let query = supabase.from('clearances').select('status');
+    const { data: rpcData, error: rpcError } = await supabase.rpc('get_clearance_stats', {
+      p_user_id: userId,
+      p_role:    role,
+    });
 
-    if (role === 'student' && userId) {
-      query = query.eq('student_id', userId);
-    } else if (role === 'teacher' && userId) {
-      query = query.eq('teacher_id', userId);
-    }
+    if (!rpcError && rpcData) return rpcData;
+
+    // Fallback: fetch only status column and aggregate client-side
+    let query = supabase.from('clearances').select('status');
+    if (role === 'student' && userId) query = query.eq('student_id', userId);
+    else if (role === 'teacher' && userId) query = query.eq('teacher_id', userId);
 
     const { data, error } = await query;
-
     if (error) throw error;
 
-    const stats = {
-      total: data.length,
-      cleared: data.filter(c => c.status === 'cleared').length,
-      pending: data.filter(c => c.status === 'pending').length,
-      rejected: data.filter(c => c.status === 'rejected').length,
-      held: data.filter(c => c.status === 'held').length,
+    return {
+      total:      data.length,
+      cleared:    data.filter(c => c.status === 'cleared').length,
+      pending:    data.filter(c => c.status === 'pending').length,
+      rejected:   data.filter(c => c.status === 'rejected').length,
+      held:       data.filter(c => c.status === 'held').length,
       deficiency: data.filter(c => c.status === 'deficiency').length,
     };
-
-    return stats;
   },
 };

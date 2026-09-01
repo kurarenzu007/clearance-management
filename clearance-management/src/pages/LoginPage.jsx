@@ -30,7 +30,14 @@ export default function LoginPage() {
     }
     setFormError('');
     try {
-      await login({ email, password });
+      const profile = await login({ email, password });
+      // Validate the selected role tab matches the actual account role
+      if (profile.role !== role) {
+        // Sign the user out and reject
+        const { authService } = await import('../services/authService');
+        await authService.signOut();
+        setFormError(`This account is registered as "${profile.role}". Please select the correct role tab.`);
+      }
     } catch (err) {
       setFormError(err.message || 'Invalid credentials');
     }

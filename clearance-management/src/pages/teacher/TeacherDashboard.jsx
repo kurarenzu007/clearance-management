@@ -1,25 +1,48 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import StatusBadge from '../../components/common/StatusBadge';
 import Modal from '../../components/common/Modal';
 import { useAuth } from '../../context/AuthContext';
+import { clearanceService } from '../../services/clearanceService';
 import '../../styles/dashboard.css';
-
-// Temporary empty data until we connect to Supabase
-const MOCK_STUDENTS = [];
 
 export default function TeacherDashboard({ activeTab }) {
   const { user } = useAuth();
-  const [students, setStudents] = useState(MOCK_STUDENTS);
-  const [filter, setFilter] = useState('all');
-  const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState([]);
+  const [clearances, setClearances] = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [filter, setFilter]         = useState('all');
+  const [search, setSearch]         = useState('');
+  const [selected, setSelected]     = useState([]);
 
-  // Remark/hold/reject modal
-  const [remarkModal, setRemarkModal] = useState(null); // { student, nextStatus }
-  const [remark, setRemark] = useState('');
+  const [remarkModal, setRemarkModal] = useState(null); // { clearance, nextStatus }
+  const [remark, setRemark]           = useState('');
+  const [viewModal, setViewModal]     = useState(null);
+  const [saving, setSaving]           = useState(false);
 
-  // View student detail modal
-  const [viewModal, setViewModal] = useState(null); // student object
+  // Fetch teacher's clearances from Supabase
+  const fetchClearances = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await clearanceService.getTeacherClearances(user.id);
+      setClearances(data);
+    } catch (err) {
+      console.error('Failed to load teacher clearances:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [user.id]);
+
+  useEffect(() => { fetchClearances(); }, [fetchClearances]);
+
+  // Normalise DB rows to shape the UI expects
+  const students = clearances.map((c) => ({
+    _clearanceId: c.id,
+    id:           c.student?.student_id ?? c.student_id,
+    name:         c.student?.name       ?? '—',
+    course:       c.student?.department ?? '—',
+    year:         c.student?.year_level ? `Year ${c.student.year_level}` : '—',
+    status:       c.status,
+    remark:       c.remarks,
+  }));
 
   const counts = {
     all:      students.length,
@@ -37,22 +60,42 @@ export default function TeacherDashboard({ activeTab }) {
       s.id.toLowerCase().includes(search.toLowerCase())
     );
 
-  const updateStatus = (id, newStatus, newRemark = '') => {
-    setStudents((prev) =>
-      prev.map((s) => s.id === id ? { ...s, status: newStatus, remark: newRemark } : s)
-    );
-  };
+  // Wire status update to service
+  const updateStatus = useCallback(async (clearanceId, newStatus, newRemark = '') => {
+    try {
+      setSaving(true);
+      await clearanceService.updateClearanceStatus(clearanceId, newStatus, newRemark || null);
+      setClearances((prev) =>
+        prev.map((c) => c.id === clearanceId ? { ...c, status: newStatus, remarks: newRemark } : c)
+      );
+    } catch (err) {
+      console.error('Failed to update status:', err);
+    } finally {
+      setSaving(false);
+    }
+  }, []);
 
-  const bulkApprove = () => {
-    setStudents((prev) =>
-      prev.map((s) => selected.includes(s.id) ? { ...s, status: 'cleared' } : s)
-    );
-    setSelected([]);
-  };
+  // Wire bulk approve to service
+  const bulkApprove = useCallback(async () => {
+    if (selected.length === 0) return;
+    try {
+      setSaving(true);
+      // selected contains clearance IDs
+      await clearanceService.bulkUpdateClearances(selected, 'cleared');
+      setClearances((prev) =>
+        prev.map((c) => selected.includes(c.id) ? { ...c, status: 'cleared' } : c)
+      );
+      setSelected([]);
+    } catch (err) {
+      console.error('Bulk approve failed:', err);
+    } finally {
+      setSaving(false);
+    }
+  }, [selected]);
 
-  const toggleSelect = (id) => {
+  const toggleSelect = (clearanceId) => {
     setSelected((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      prev.includes(clearanceId) ? prev.filter((x) => x !== clearanceId) : [...prev, clearanceId]
     );
   };
 
@@ -61,9 +104,9 @@ export default function TeacherDashboard({ activeTab }) {
     setRemark('');
   };
 
-  const submitRemark = () => {
+  const submitRemark = async () => {
     if (remarkModal) {
-      updateStatus(remarkModal.student.id, remarkModal.nextStatus, remark);
+      await updateStatus(remarkModal.student._clearanceId, remarkModal.nextStatus, remark);
       setRemarkModal(null);
     }
   };
@@ -72,7 +115,6 @@ export default function TeacherDashboard({ activeTab }) {
 
   const sharedModals = (
     <>
-      {/* View Student Modal */}
       <Modal
         isOpen={!!viewModal}
         onClose={() => setViewModal(null)}
@@ -84,19 +126,23 @@ export default function TeacherDashboard({ activeTab }) {
               <>
                 <button
                   className="btn btn-success btn-sm"
-                  onClick={() => { updateStatus(viewModal.id, 'cleared'); setViewModal(null); }}
+                  disabled={saving}
+                  onClick={() => { updateStatus(viewModal._clearanceId, 'cleared'); setViewModal(null); }}
+                  aria-label="Approve clearance"
                 >
                   ✓ Approve
                 </button>
                 <button
                   className="btn btn-outline btn-sm"
                   onClick={() => { setViewModal(null); openRemarkModal(viewModal, 'held'); }}
+                  aria-label="Hold clearance"
                 >
                   Hold
                 </button>
                 <button
                   className="btn btn-danger btn-sm"
                   onClick={() => { setViewModal(null); openRemarkModal(viewModal, 'rejected'); }}
+                  aria-label="Reject clearance"
                 >
                   Reject
                 </button>
@@ -109,7 +155,6 @@ export default function TeacherDashboard({ activeTab }) {
         {viewModal && <StudentDetailContent student={viewModal} />}
       </Modal>
 
-      {/* Remark / Hold / Reject Modal */}
       <Modal
         isOpen={!!remarkModal}
         onClose={() => setRemarkModal(null)}
@@ -120,6 +165,7 @@ export default function TeacherDashboard({ activeTab }) {
             <button className="btn btn-ghost btn-sm" onClick={() => setRemarkModal(null)}>Cancel</button>
             <button
               className={`btn btn-sm ${remarkModal?.nextStatus === 'held' ? 'btn-outline' : 'btn-danger'}`}
+              disabled={saving}
               onClick={submitRemark}
             >
               {remarkModal?.nextStatus === 'held' ? 'Confirm Hold' : 'Confirm Reject'}
@@ -129,11 +175,7 @@ export default function TeacherDashboard({ activeTab }) {
       >
         {remarkModal && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {/* Student mini-profile */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', padding: '8px 12px',
-            }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', padding: '8px 12px' }}>
               <div className="avatar" style={{ flexShrink: 0 }}>
                 {remarkModal.student.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
               </div>
@@ -148,12 +190,12 @@ export default function TeacherDashboard({ activeTab }) {
               </div>
             </div>
 
-            {/* Remark textarea */}
             <div className="form-group">
-              <label className="form-label">
+              <label className="form-label" htmlFor="remark-text">
                 {remarkModal.nextStatus === 'held' ? 'What must the student fix?' : 'Reason for rejection'}
               </label>
               <textarea
+                id="remark-text"
                 className="form-textarea form-input"
                 rows={3}
                 placeholder="e.g. Missing laboratory report for Module 4..."
@@ -168,6 +210,15 @@ export default function TeacherDashboard({ activeTab }) {
       </Modal>
     </>
   );
+
+  if (loading) {
+    return (
+      <div className="empty-state">
+        <div className="spinner" style={{ margin: '0 auto' }} />
+        <p>Loading students…</p>
+      </div>
+    );
+  }
 
   // ── Dashboard Tab ──────────────────────────────────────────────────────────
 
@@ -185,10 +236,10 @@ export default function TeacherDashboard({ activeTab }) {
           </div>
           <div className="overview-footer-stats">
             {[
-              { num: counts.all,     label: 'Total Students' },
-              { num: counts.pending, label: 'Pending Review' },
-              { num: counts.cleared, label: 'Cleared' },
-              { num: counts.held + counts.rejected, label: 'Need Action' },
+              { num: counts.all,                        label: 'Total Students' },
+              { num: counts.pending,                    label: 'Pending Review' },
+              { num: counts.cleared,                    label: 'Cleared' },
+              { num: counts.held + counts.rejected,     label: 'Need Action' },
             ].map((s) => (
               <div key={s.label}>
                 <div className="overview-foot-stat-num">{s.num}</div>
@@ -225,7 +276,7 @@ export default function TeacherDashboard({ activeTab }) {
           selected={selected}
           onToggleSelect={toggleSelect}
           onView={(s) => setViewModal(s)}
-          onApprove={(s) => updateStatus(s.id, 'cleared')}
+          onApprove={(s) => updateStatus(s._clearanceId, 'cleared')}
           onReject={(s) => openRemarkModal(s, 'rejected')}
           onHold={(s) => openRemarkModal(s, 'held')}
         />
@@ -245,18 +296,16 @@ export default function TeacherDashboard({ activeTab }) {
 
     return (
       <div className="animate-fade-in">
-        {/* Bulk actions bar */}
         {selected.length > 0 && (
           <div className="bulk-actions-bar">
             <span>{selected.length} student{selected.length > 1 ? 's' : ''} selected</span>
             <div className="bulk-actions-buttons">
-              <button className="btn btn-success btn-sm" onClick={bulkApprove}>✓ Bulk Approve</button>
+              <button className="btn btn-success btn-sm" disabled={saving} onClick={bulkApprove}>✓ Bulk Approve</button>
               <button className="btn btn-ghost btn-sm" style={{ color: 'white' }} onClick={() => setSelected([])}>Cancel</button>
             </div>
           </div>
         )}
 
-        {/* Filters + search */}
         <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 'var(--space-5)', flexWrap: 'wrap' }}>
           {activeTab === 'students' && (
             <div className="teacher-filters" style={{ flex: 1, margin: 0 }}>
@@ -272,7 +321,7 @@ export default function TeacherDashboard({ activeTab }) {
             </div>
           )}
           <div className="search-wrapper" style={{ minWidth: 220 }}>
-            <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
             <input
@@ -280,6 +329,7 @@ export default function TeacherDashboard({ activeTab }) {
               placeholder="Search students..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search students"
             />
           </div>
         </div>
@@ -289,7 +339,7 @@ export default function TeacherDashboard({ activeTab }) {
           selected={selected}
           onToggleSelect={toggleSelect}
           onView={(s) => setViewModal(s)}
-          onApprove={(s) => updateStatus(s.id, 'cleared')}
+          onApprove={(s) => updateStatus(s._clearanceId, 'cleared')}
           onReject={(s) => openRemarkModal(s, 'rejected')}
           onHold={(s) => openRemarkModal(s, 'held')}
         />
@@ -308,7 +358,7 @@ function StudentTable({ students, selected, onToggleSelect, onView, onApprove, o
   if (students.length === 0) {
     return (
       <div className="empty-state">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
           <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
         </svg>
         <h3>No students found</h3>
@@ -317,7 +367,7 @@ function StudentTable({ students, selected, onToggleSelect, onView, onApprove, o
     );
   }
 
-  const allChecked = students.length > 0 && students.every((s) => selected.includes(s.id));
+  const allChecked = students.length > 0 && students.every((s) => selected.includes(s._clearanceId));
 
   return (
     <div className="table-wrapper">
@@ -327,11 +377,12 @@ function StudentTable({ students, selected, onToggleSelect, onView, onApprove, o
             <th style={{ width: 36 }}>
               <input
                 type="checkbox"
+                aria-label="Select all students"
                 checked={allChecked}
                 onChange={(e) => students.forEach((s) =>
                   e.target.checked
-                    ? !selected.includes(s.id) && onToggleSelect(s.id)
-                    : selected.includes(s.id) && onToggleSelect(s.id)
+                    ? !selected.includes(s._clearanceId) && onToggleSelect(s._clearanceId)
+                    : selected.includes(s._clearanceId) && onToggleSelect(s._clearanceId)
                 )}
               />
             </th>
@@ -345,13 +396,18 @@ function StudentTable({ students, selected, onToggleSelect, onView, onApprove, o
         </thead>
         <tbody>
           {students.map((s) => (
-            <tr key={s.id}>
+            <tr key={s._clearanceId}>
               <td>
-                <input type="checkbox" checked={selected.includes(s.id)} onChange={() => onToggleSelect(s.id)} />
+                <input
+                  type="checkbox"
+                  aria-label={`Select ${s.name}`}
+                  checked={selected.includes(s._clearanceId)}
+                  onChange={() => onToggleSelect(s._clearanceId)}
+                />
               </td>
               <td>
                 <div className="user-info-cell" style={{ cursor: 'pointer' }} onClick={() => onView(s)}>
-                  <div className="avatar">{s.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}</div>
+                  <div className="avatar" aria-hidden="true">{s.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}</div>
                   <div className="user-cell-info">
                     <div className="user-name">{s.name}</div>
                     <div className="user-id">{s.id}</div>
@@ -371,18 +427,33 @@ function StudentTable({ students, selected, onToggleSelect, onView, onApprove, o
               <td>
                 {s.status !== 'cleared' ? (
                   <div className="student-row-actions">
-                    <button className="action-btn action-btn-approve tooltip" data-tip="Approve" onClick={() => onApprove(s)}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <button
+                      className="action-btn action-btn-approve tooltip"
+                      data-tip="Approve"
+                      aria-label={`Approve ${s.name}`}
+                      onClick={() => onApprove(s)}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <polyline points="20 6 9 17 4 12"/>
                       </svg>
                     </button>
-                    <button className="action-btn action-btn-hold tooltip" data-tip="Hold" onClick={() => onHold(s)}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <button
+                      className="action-btn action-btn-hold tooltip"
+                      data-tip="Hold"
+                      aria-label={`Hold ${s.name}`}
+                      onClick={() => onHold(s)}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
                       </svg>
                     </button>
-                    <button className="action-btn action-btn-reject tooltip" data-tip="Reject" onClick={() => onReject(s)}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <button
+                      className="action-btn action-btn-reject tooltip"
+                      data-tip="Reject"
+                      aria-label={`Reject ${s.name}`}
+                      onClick={() => onReject(s)}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                       </svg>
                     </button>
@@ -402,20 +473,13 @@ function StudentTable({ students, selected, onToggleSelect, onView, onApprove, o
 // ─── Student Detail Modal Content ─────────────────────────────────────────────
 
 function StudentDetailContent({ student }) {
-  const lbl = {
-    fontSize: '0.6875rem', fontWeight: 700, color: 'var(--gray-400)',
-    textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2,
-  };
+  const lbl = { fontSize: '0.6875rem', fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 };
   const val = { fontWeight: 600, fontSize: '0.875rem', color: 'var(--gray-800)' };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* Avatar + name header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 12,
-        background: 'var(--blue-muted)', borderRadius: 'var(--radius-md)', padding: '10px 14px',
-      }}>
-        <div className="avatar avatar-lg" style={{ background: 'var(--blue)', color: 'var(--white)', fontSize: '1rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--blue-muted)', borderRadius: 'var(--radius-md)', padding: '10px 14px' }}>
+        <div className="avatar avatar-lg" style={{ background: 'var(--blue)', color: 'var(--white)', fontSize: '1rem' }} aria-hidden="true">
           {student.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
         </div>
         <div>
@@ -427,7 +491,6 @@ function StudentDetailContent({ student }) {
         </div>
       </div>
 
-      {/* Info grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 16px' }}>
         <div>
           <div style={lbl}>Course</div>
@@ -443,17 +506,8 @@ function StudentDetailContent({ student }) {
         </div>
       </div>
 
-      {/* Remark if exists */}
       {student.remark && (
-        <div style={{
-          background: 'var(--orange-light)',
-          borderLeft: '3px solid var(--orange)',
-          borderRadius: '0 var(--radius-sm) var(--radius-sm) 0',
-          padding: '8px 12px',
-          fontSize: '0.8125rem',
-          color: 'var(--gray-700)',
-          lineHeight: 1.55,
-        }}>
+        <div style={{ background: 'var(--orange-light)', borderLeft: '3px solid var(--orange)', borderRadius: '0 var(--radius-sm) var(--radius-sm) 0', padding: '8px 12px', fontSize: '0.8125rem', color: 'var(--gray-700)', lineHeight: 1.55 }}>
           <div style={{ ...lbl, color: 'var(--orange)', marginBottom: 4 }}>Active Remark</div>
           {student.remark}
         </div>
