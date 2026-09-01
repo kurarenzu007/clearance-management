@@ -27,6 +27,9 @@ export function AuthProvider({ children }) {
         if (profile) {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
           setUser(profile);
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+          setUser(null);
         }
       } catch (err) {
         console.error('Session check failed:', err);
@@ -37,19 +40,11 @@ export function AuthProvider({ children }) {
 
     checkSession();
 
-    // Listen for auth state changes
-    const { data: { subscription } } = authService.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        try {
-          const profile = await authService.getCurrentUserProfile();
-          if (profile) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
-            setUser(profile);
-          }
-        } catch (err) {
-          console.error('Failed to fetch profile:', err);
-        }
-      } else if (event === 'SIGNED_OUT') {
+    // The auth state listener is intentionally minimal — it only handles
+    // SIGNED_OUT to clear state. SIGNED_IN is handled inside login() directly
+    // to avoid a race where two concurrent users-table fetches block each other.
+    const { data: { subscription } } = authService.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
         localStorage.removeItem(STORAGE_KEY);
         setUser(null);
       }
